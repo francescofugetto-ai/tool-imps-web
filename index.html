@@ -1,0 +1,983 @@
+﻿<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tool IMPS">
+<meta name="theme-color" content="#FAF9F7">
+<script data-iphone="sentinella">
+(function(){
+var h=document.documentElement, msg="";
+function ha(c){ return (" "+h.className+" ").indexOf(" "+c+" ")>=0; }
+// L'errore puo' arrivare prima che l'avviso esista — uno script in <head> che
+// non si lascia leggere —: il messaggio si tiene da parte e si scrive quando
+// la pagina c'e'.
+function scrivi(){
+  var e=document.getElementById("nmerr");
+  if(e&&msg) e.textContent="Errore del motore: "+msg;
+}
+function ko(m){
+  if(m&&!msg) msg=m;
+  if(!ha("motore-ko")) h.className+=" motore-ko";
+  scrivi();
+}
+h.className+=" js";
+window.onerror=function(m,src,riga,col){
+  m=String(m);
+  if(/^Script error\.?$/.test(m)) m="il browser non ne mostra il dettaglio (\u00abScript error.\u00bb)";
+  ko(m+(riga?" (riga "+riga+(col?", colonna "+col:"")+")":""));
+};
+document.addEventListener("DOMContentLoaded",function(){
+  if(!ha("motore-ok")) ko(msg||"il motore non ha completato l'avvio"); else scrivi();
+});
+})();
+</script>
+<title>IMPS — diagnosi, rischio e dove curare</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --bg:#FAF9F7; --surface:#FFFFFF; --surface-alt:#F3F2EF;
+    --border:rgba(11,11,11,0.10); --border-strong:rgba(11,11,11,0.18);
+    --text-primary:#0B0B0B; --text-secondary:#52514E; --text-muted:#76746F;
+    --accent-blue:#2A78D6;   --accent-blue-bg:#E6F1FB;   --accent-blue-border:#B5D4F4;
+    --accent-amber:#BA7517;  --accent-amber-bg:#FAEEDA;  --accent-amber-border:#FAC775;
+    --accent-red:#A32D2D;    --accent-red-bg:#FCEBEB;    --accent-red-border:#F7C1C1;
+    --accent-green:#3B6D11;  --accent-green-bg:#EAF3DE;  --accent-green-border:#C0DD97;
+    --accent-purple:#534AB7; --accent-purple-bg:#EEEDFE; --accent-purple-border:#CECBF6;
+    --cor-1:#3B8E5A; --cor-2a:#E0A82E; --cor-2b:#DE7E3C; --cor-3:#B33A3A;
+    --k0:#2E7D4F; --k0-bg:#E2F3E8; --k0-bd:#A6D9B8;
+    --k1:#2A78D6; --k1-bg:#E3EFFB; --k1-bd:#A9CBF1;
+    --k2:#8A6A00; --k2-bg:#FBF3C8; --k2-bd:#EBD56C;
+    --k3:#B45309; --k3-bg:#FDEBD8; --k3-bd:#F4BD85;
+    --k4:#A32D2D; --k4-bg:#FCE3E3; --k4-bd:#F0A9A9;
+    --grid:rgba(42,120,214,.08);
+    --font:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --display:'IBM Plex Sans Condensed','Arial Narrow',-apple-system,'Segoe UI',sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Consolas,'Courier New',monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#111418; --surface:#181C22; --surface-alt:#20252D;
+      --border:rgba(255,255,255,.10); --border-strong:rgba(255,255,255,.19);
+      --text-primary:#E7EAEE; --text-secondary:#B8BEC7; --text-muted:#949BA5;
+      --accent-blue:#72AAEE;   --accent-blue-bg:#18283A;   --accent-blue-border:#2E4B6C;
+      --accent-amber:#E3A94F;  --accent-amber-bg:#30250F;  --accent-amber-border:#5D4719;
+      --accent-red:#EF8E8E;    --accent-red-bg:#361B1B;    --accent-red-border:#6B3232;
+      --accent-green:#95C873;  --accent-green-bg:#1C2A13;  --accent-green-border:#3C5626;
+      --accent-purple:#ADA6F2; --accent-purple-bg:#23213B; --accent-purple-border:#454077;
+      --k0:#8FD3A8; --k0-bg:#132B1D; --k0-bd:#2D5A3E;
+      --k1:#8EC0F5; --k1-bg:#16283C; --k1-bd:#2F5378;
+      --k2:#EDD36A; --k2-bg:#2C260C; --k2-bd:#5E5120;
+      --k3:#F3B27A; --k3-bg:#33210F; --k3-bd:#6B4524;
+      --k4:#F29A9A; --k4-bg:#361B1B; --k4-bd:#6B3232;
+      --grid:rgba(114,170,238,.07);
+      color-scheme:dark;
+    }
+  }
+  body { font-family:var(--font); background:var(--bg); color:var(--text-primary); font-size:14.5px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:960px; margin:0 auto; padding:0 16px 4rem; }
+  strong, b { font-weight:600; }
+  .muted { color:var(--text-muted); }
+  .hero { margin:0 -16px 0; padding:2.2rem 16px 1.3rem; border-bottom:1px solid var(--border);
+          background-color:var(--bg);
+          background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+          background-size:22px 22px; }
+  .kicker { font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--accent-blue); margin-bottom:8px; }
+  .headline { font-family:var(--display); font-size:30px; font-weight:700; line-height:1.12; margin-bottom:10px; }
+  .lede { font-size:14.5px; color:var(--text-secondary); max-width:760px; margin-bottom:12px; }
+  .lede strong { color:var(--text-primary); }
+  .meta-row { display:flex; flex-wrap:wrap; gap:6px 8px; font-size:12px; }
+  .meta-chip { background:var(--surface); border:1px solid var(--border-strong); border-radius:99px; padding:2px 10px; color:var(--text-secondary); overflow-wrap:anywhere; }
+  .meta-chip strong { color:var(--text-primary); }
+  .bar { position:-webkit-sticky; position:-webkit-sticky;position:sticky; top:0; z-index:30; background:var(--bg); border-bottom:1px solid var(--border-strong);
+         margin:0 -16px 1.2rem; padding:8px 16px; display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; }
+  .bar .lbl { font-family:var(--mono); font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-muted); }
+  .bar .sp { flex:1 1 auto; }
+  .btn { font:600 12.5px var(--font); padding:6px 13px; border-radius:99px; border:1px solid var(--border-strong); background:var(--surface); color:var(--text-secondary); cursor:pointer; }
+  .btn:hover { border-color:var(--accent-blue); color:var(--accent-blue); }
+  .stage { display:flex; align-items:baseline; gap:10px; margin:2rem 0 .7rem; padding-bottom:6px; border-bottom:2px solid var(--border-strong); }
+  .stage-n { font-family:var(--mono); font-size:12px; font-weight:600; color:#FFFFFF; background:var(--accent-blue); border-radius:6px; padding:1px 7px; }
+  .stage-t { font-family:var(--display); font-size:20px; font-weight:700; line-height:1.2; }
+  .stage-w { margin-left:auto; font-size:11.5px; color:var(--text-muted); text-align:right; }
+  .card { background:var(--surface); border:1px solid var(--border-strong); border-radius:12px; padding:14px 16px; margin-bottom:12px; }
+  .card h3 { font-size:13px; font-weight:600; letter-spacing:.02em; margin-bottom:8px; color:var(--text-secondary); }
+  .card h4 { font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--text-muted); margin:10px 0 2px; }
+  .row { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin-bottom:10px; }
+  .row:last-child { margin-bottom:0; }
+  .fl { font-size:12.5px; font-weight:600; color:var(--text-secondary); min-width:150px; }
+  .fl small { display:block; font-weight:400; color:var(--text-muted); font-size:11.5px; }
+  input[type=number] { font:500 15px var(--font); color:var(--text-primary); background:var(--surface); border:1px solid var(--border-strong); border-radius:8px; padding:6px 9px; width:92px; text-align:center; }
+  .sl { color:var(--text-muted); font-size:13px; }
+  .seg { display:inline-flex; flex-wrap:wrap; border:1px solid var(--border-strong); border-radius:10px; overflow:hidden; }
+  .seg label { position:relative; cursor:pointer; }
+  .seg input { position:absolute; opacity:0; width:1px; height:1px; }
+  .seg span { display:block; padding:6px 12px; font-size:13.5px; font-weight:500; color:var(--text-secondary); border-right:1px solid var(--border); }
+  .seg label:last-child span { border-right:none; }
+  .seg input:checked + span { background:var(--text-primary); color:var(--bg); }
+  .seg input:focus-visible + span { outline:2px solid var(--accent-blue); outline-offset:-2px; }
+  .chk { display:flex; align-items:flex-start; gap:9px; padding:6px 0; font-size:14px; line-height:1.45; border-bottom:1px dashed var(--border); cursor:pointer; }
+  .chk:last-child { border-bottom:none; }
+  .chk input { margin-top:3px; width:17px; height:17px; flex:0 0 auto; accent-color:var(--accent-blue); }
+  .chk small { display:block; color:var(--text-muted); font-size:12px; }
+  .chk sup { font-size:10px; color:var(--accent-red); font-weight:700; }
+  .due { display:grid; grid-template-columns:1fr 1fr; gap:4px 14px; }
+  .hide { display:none !important; }
+  .esito { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:4px; }
+  .cat { display:inline-block; font-size:12.5px; font-weight:600; border-radius:99px; padding:2px 10px; border:1px solid; }
+  .k0 { color:var(--k0); background:var(--k0-bg); border-color:var(--k0-bd); }
+  .k1 { color:var(--k1); background:var(--k1-bg); border-color:var(--k1-bd); }
+  .k2 { color:var(--k2); background:var(--k2-bg); border-color:var(--k2-bd); }
+  .k3 { color:var(--k3); background:var(--k3-bg); border-color:var(--k3-bd); }
+  .k4 { color:var(--k4); background:var(--k4-bg); border-color:var(--k4-bd); }
+  .kx { color:var(--text-muted); background:var(--surface-alt); border-color:var(--border-strong); }
+  .big { font-family:var(--display); font-size:24px; font-weight:700; line-height:1.15; }
+  .cor { display:inline-block; font-family:var(--mono); font-size:11px; font-weight:600; color:#FFFFFF; border-radius:4px; padding:0 5px; margin:0 1px; white-space:nowrap; vertical-align:1px; }
+  .c1 { background:var(--cor-1); } .c2a { background:var(--cor-2a); color:#1D1602; } .c2b { background:var(--cor-2b); } .c3 { background:var(--cor-3); }
+  .pg { font-family:var(--mono); font-size:11px; color:var(--text-muted); }
+  .dv { font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.03em; color:var(--accent-red); background:var(--accent-red-bg); border:1px solid var(--accent-red-border); border-radius:4px; padding:0 5px; white-space:nowrap; }
+  .nota { border-left:3px solid var(--accent-amber); background:var(--accent-amber-bg); border-radius:0 8px 8px 0; padding:7px 11px; margin-top:8px; font-size:13.5px; }
+  .nota.info { border-left-color:var(--accent-blue); background:var(--accent-blue-bg); }
+  .nota.stop { border-left-color:var(--accent-red); background:var(--accent-red-bg); }
+  .nota.ok { border-left-color:var(--accent-green); background:var(--accent-green-bg); }
+  .nota.spenta { border-left-color:var(--border-strong); background:var(--surface-alt); color:var(--text-secondary); }
+  .nota strong { color:var(--text-primary); }
+  .tocca { font-family:var(--mono); font-size:10px; font-weight:600; color:var(--accent-amber); border:1px solid var(--accent-amber-border); border-radius:4px; padding:0 5px; margin-right:4px; white-space:nowrap; }
+  .passo { display:flex; gap:10px; padding:8px 0; border-bottom:1px dashed var(--border); }
+  .passo:last-child { border-bottom:none; }
+  .passo .ico { flex:0 0 26px; font-weight:700; text-align:center; font-family:var(--mono); font-size:13px; padding-top:1px; }
+  .passo .tx { flex:1 1 auto; font-size:14px; min-width:0; overflow-wrap:anywhere; }
+  .passo.att { background:var(--accent-blue-bg); border-radius:8px; border-bottom-color:transparent; padding:8px 8px; margin:2px -8px; }
+  .passo.att .ico { color:var(--accent-blue); }
+  .passo.esc .ico { color:var(--accent-red); }
+  .passo.esc .tx { color:var(--text-secondary); }
+  .passo.fat .ico { color:var(--text-muted); }
+  .passo.fat .tx { color:var(--text-muted); }
+  .passo.dopo .ico { color:var(--text-muted); }
+  .lista li { margin:4px 0 4px 18px; font-size:13.5px; }
+  .crit { margin-top:6px; border-top:1px dashed var(--border); padding-top:6px; }
+  .ck { display:flex; gap:8px; font-size:13.5px; padding:3px 0; }
+  .ck .s { flex:0 0 18px; font-weight:700; text-align:center; }
+  .ck .s.ok { color:var(--k0); } .ck .s.no { color:var(--k4); } .ck .s.nd { color:var(--text-muted); } .ck .s.mid { color:var(--k2); }
+  .ent { font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--accent-purple); margin:12px 0 2px; }
+  .ent:first-of-type { margin-top:2px; }
+  .foot { margin-top:2.4rem; padding-top:1rem; border-top:1px solid var(--border-strong); font-size:12px; color:var(--text-muted); line-height:1.7; }
+  .foot strong { color:var(--text-secondary); }
+  @media (max-width:640px) {
+    .due { grid-template-columns:1fr; }
+    .headline { font-size:25px; }
+    .stage-w { display:none; }
+    .fl { min-width:0; width:100%; }
+    .big { font-size:21px; }
+  }
+  @media print { .bar { position:static; } }
+</style>
+<style data-iphone="stile">
+/* L'avviso e' visibile per costruzione: lo nasconde solo la classe che la
+   sentinella mette quando JavaScript esiste, e lo rimostra quando il motore
+   muore. Nell'anteprima dell'iPhone nessuna delle due arriva. */
+#nomotore{background:#FCEBEB;border:1.5px solid #A32D2D;border-radius:10px;
+ padding:12px 15px;margin:0 0 1.1rem;font-size:13.5px;line-height:1.6;color:#0B0B0B;
+ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif}
+#nomotore strong{display:block;color:#A32D2D;font-size:15px;margin-bottom:4px}
+#nomotore p{margin:6px 0 0}
+#nomotore a{color:#A32D2D}
+#nomotore .nmurl{font-family:'SFMono-Regular',Consolas,Menlo,monospace;font-size:.92em;word-break:break-all}
+#nomotore .nmerr{display:block;font-family:'SFMono-Regular',Consolas,Menlo,monospace;
+ font-size:11.5px;color:#A32D2D;margin-top:6px;word-break:break-word}
+#nomotore .nmerr:empty{display:none}
+html.js #nomotore{display:none}
+html.js.motore-ko #nomotore{display:block}
+
+#nmprivacy{background:#E2F4F5;border:1px solid #A7DBDE;border-radius:8px;padding:9px 13px;
+ margin:0 0 1rem;font-size:12.5px;line-height:1.55;color:#0B0B0B;
+ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif}
+@media print{#nmprivacy{display:none}}
+</style>
+</head>
+<body>
+<div class="nomotore" id="nomotore" role="alert">
+ <strong>Motore di calcolo non attivo</strong>
+ <p>I calcoli, i filtri e i comandi di questa pagina <b>non funzionano</b>: dove leggi «—» non c'è un
+ valore. Il testo resta leggibile, i numeri che dipendono dai tuoi dati no. Non usare questa pagina
+ per decidere una dose.</p>
+ <p>Su iPhone e iPad succede sempre con un file salvato sul telefono: si apre nell'<b>anteprima</b> —
+ dall'app File, da Mail, da WhatsApp —, che mostra la pagina ma non esegue il motore, e Apple non
+ permette di aprirlo in Safari. Sull'iPhone il tool funziona aperto da questo indirizzo, in Safari: <a class="nmurl" href="https://francescofugetto-ai.github.io/tool-imps-web/">https://francescofugetto-ai.github.io/tool-imps-web/</a> — poi Condividi, «Aggiungi alla schermata Home». Dopo la prima apertura funziona anche senza rete. Su computer e Android basta aprire il file.</p>
+ <span class="nmerr" id="nmerr"></span>
+</div>
+<div class="nmprivacy" id="nmprivacy">
+ <b>Quello che scrivi resta su questo dispositivo.</b> La pagina non invia niente in rete e non
+ salva niente: nessun dato esce da qui. Per la stessa ragione, <b>chiudendola il contenuto si
+ perde</b> — copia il referto dove ti serve prima di chiudere.
+</div>
+<div class="page">
+<header class="hero">
+  <div class="kicker">Strumento · Miocardite e pericardite · ESC 2025</div>
+  <h1 class="headline">IMPS — diagnosi, categoria di rischio e dove curare</h1>
+  <p class="lede"><strong>Come si usa.</strong> Il passo 1 dice che cosa si sospetta e da dove arriva il paziente. Il passo 2 porta i criteri della Tab. 4: ne esce la diagnosi <strong>definita, possibile o improbabile</strong> per miocardite e pericardite, la lettura della CMR con i criteri di Lake Louise aggiornati e la <strong>forma mista</strong>. Il passo 3 porta i criteri clinici e di imaging della Tab. 7: ne esce la <strong>categoria di rischio</strong> con il criterio che l'ha decisa. Il passo 4 dice <strong>dove curare</strong>, con la classe, se fare CMR o biopsia, la ricerca eziologica e quale algoritmo della fonte seguire. Nessuna dose: le terapie stanno nel prontuario. <strong>Azzera</strong>, in alto, ricomincia.</p>
+  <div class="meta-row">
+    <span class="meta-chip"><strong>Fonte</strong> 2025 ESC Guidelines for the management of myocarditis and pericarditis</span>
+    <span class="meta-chip"><strong>Calcolo</strong> Tab. 3 p. 11 · Tab. 4 p. 13 · Fig. 4 p. 14 · Tab. 7 p. 16 · Fig. 5–7 pp. 17–19 · Fig. 9–11 pp. 21–24 · Rec. Table 1 p. 28 · pp. 47–48</span>
+  </div>
+</header>
+
+<div class="bar" id="bar" aria-live="polite">
+  <span class="lbl">Diagnosi</span> <span id="barDia" class="cat kx">—</span>
+  <span class="lbl">Rischio</span> <span id="barRis" class="cat kx">—</span>
+  <span class="lbl">Dove</span> <span id="barDove" class="cat kx">—</span>
+  <span class="sp"></span>
+  <button class="btn" id="azzera" type="button">Azzera</button>
+</div>
+
+<div class="stage"><span class="stage-n">1</span><span class="stage-t">Il sospetto e la porta d'ingresso</span><span class="stage-w">Tab. 6 p. 16 · Fig. 5–7, 9–11</span></div>
+<div class="card">
+  <div class="row">
+    <span class="fl">Che cosa si sospetta<small>le red flag della Tab. 6 fanno sospettare, non stratificano</small></span>
+    <span class="seg">
+      <label><input type="radio" name="ent" value="mio"><span>miocardite</span></label>
+      <label><input type="radio" name="ent" value="peri"><span>pericardite</span></label>
+      <label><input type="radio" name="ent" value="entrambe"><span>entrambe</span></label>
+    </span>
+  </div>
+  <div class="row">
+    <span class="fl">Primo contatto</span>
+    <span class="seg">
+      <label><input type="radio" name="porta" value="ps"><span>pronto soccorso</span></label>
+      <label><input type="radio" name="porta" value="amb"><span>ambulatorio</span></label>
+    </span>
+  </div>
+  <div class="row">
+    <span class="fl">Presentazione clinica<small>Tab. 4, nota: la diagnosi parte da qui</small></span>
+    <span class="seg">
+      <label><input type="radio" name="pres" value="dolore"><span>dolore toracico</span></label>
+      <label><input type="radio" name="pres" value="scompenso"><span>scompenso acuto</span></label>
+      <label><input type="radio" name="pres" value="aritmia"><span>aritmie o arresto abortito</span></label>
+      <label><input type="radio" name="pres" value="asint"><span>nessuna, asintomatico</span></label>
+    </span>
+  </div>
+  <div class="row">
+    <span class="fl">Coronaropatia ostruttiva</span>
+    <span class="seg">
+      <label><input type="radio" name="cad" value="esclusa"><span>esclusa o non sospettata</span></label>
+      <label><input type="radio" name="cad" value="daesc"><span>SCA sospetta, da escludere</span></label>
+      <label><input type="radio" name="cad" value="presente"><span>presente</span></label>
+    </span>
+  </div>
+</div>
+
+<div class="stage"><span class="stage-n">2</span><span class="stage-t">Criteri diagnostici</span><span class="stage-w">Tab. 4 p. 13 · Fig. 4 p. 14 · Tab. 3 p. 11</span></div>
+<div class="card">
+  <h3>Comuni alle due entità</h3>
+  <label class="chk"><input type="checkbox" id="trop"><span>Troponina ad alta sensibilità o CK-MB elevata<small>criterio aggiuntivo della miocardite; per la forma mista, il marcatore di danno miocardico</small></span></label>
+  <div class="row" style="margin-top:8px">
+    <span class="fl">Funzione VS all'eco o alla CMR<small>strain, cinesi regionale, frazione di eiezione</small></span>
+    <span class="seg">
+      <label><input type="radio" name="vs" value="normale"><span>normale</span></label>
+      <label><input type="radio" name="vs" value="nuova"><span>alterata, di nuova insorgenza</span></label>
+      <label><input type="radio" name="vs" value="nota"><span>alterata, già nota</span></label>
+    </span>
+  </div>
+</div>
+<div class="card" id="cardDiaMio">
+  <h3>Miocardite — criteri aggiuntivi</h3>
+  <div class="due">
+    <label class="chk"><input type="checkbox" id="mClin"><span>Reperti clinici aspecifici</span></label>
+    <label class="chk"><input type="checkbox" id="mEcg"><span>Alterazioni ST-T all'ECG</span></label>
+  </div>
+  <h4>CMR — criteri di Lake Louise aggiornati <span class="pg">Fig. 4, p. 14</span></h4>
+  <div class="row">
+    <span class="fl">Criterio T2<small>edema: T2 pesata o mapping T2</small></span>
+    <span class="seg">
+      <label><input type="radio" name="t2" value="pos"><span>positivo</span></label>
+      <label><input type="radio" name="t2" value="neg"><span>negativo</span></label>
+      <label><input type="radio" name="t2" value="nd"><span>non valutato</span></label>
+    </span>
+  </div>
+  <div class="row">
+    <span class="fl">Criterio T1<small>danno non ischemico: mapping T1, ECV o LGE</small></span>
+    <span class="seg">
+      <label><input type="radio" name="t1" value="pos"><span>positivo</span></label>
+      <label><input type="radio" name="t1" value="neg"><span>negativo</span></label>
+      <label><input type="radio" name="t1" value="nd"><span>non valutato</span></label>
+    </span>
+  </div>
+  <div class="row">
+    <span class="fl">Biopsia endomiocardica<small>categoria secondo il consenso dei patologi</small></span>
+    <span class="seg">
+      <label><input type="radio" name="emb" value="nd"><span>non eseguita</span></label>
+      <label><input type="radio" name="emb" value="provata"><span>provata</span></label>
+      <label><input type="radio" name="emb" value="incerta"><span>incerta</span></label>
+      <label><input type="radio" name="emb" value="respinta"><span>respinta</span></label>
+    </span>
+  </div>
+</div>
+<div class="card" id="cardDiaPeri">
+  <h3>Pericardite — criteri aggiuntivi</h3>
+  <div class="due">
+    <label class="chk"><input type="checkbox" id="pRub"><span>Sfregamenti pericardici</span></label>
+    <label class="chk"><input type="checkbox" id="pEcg"><span>Sottoslivellamento del PR o sopraslivellamento ST diffuso</span></label>
+    <label class="chk"><input type="checkbox" id="pPcr"><span>PCR elevata</span></label>
+    <label class="chk"><input type="checkbox" id="pVers"><span>Versamento pericardico nuovo o in aumento</span></label>
+    <label class="chk"><input type="checkbox" id="pCmr"><span>Edema e/o LGE pericardico alla CMR</span></label>
+  </div>
+</div>
+<div class="card" id="outDia"></div>
+
+<div class="stage"><span class="stage-n">3</span><span class="stage-t">Categoria di rischio</span><span class="stage-w">Tab. 7, p. 16</span></div>
+<div class="card" id="cardRisMio">
+  <h3>Miocardite — criteri clinici <span class="pg">Tab. 7, p. 16</span></h3>
+  <h4>Alto rischio</h4>
+  <div class="due">
+    <label class="chk"><input type="checkbox" id="rShock"><span>Scompenso acuto o shock cardiogeno</span></label>
+    <label class="chk"><input type="checkbox" id="rNyha"><span>Dispnea NYHA III–IV refrattaria alla terapia</span></label>
+    <label class="chk"><input type="checkbox" id="rArresto"><span>Arresto cardiaco o sincope <sup>a</sup></span></label>
+    <label class="chk"><input type="checkbox" id="rTv"><span>FV o TV sostenuta <sup>a</sup></span></label>
+    <label class="chk"><input type="checkbox" id="rBav"><span>BAV di alto grado <sup>a</sup></span></label>
+  </div>
+  <h4>Rischio intermedio</h4>
+  <div class="due">
+    <label class="chk"><input type="checkbox" id="rDisp"><span>Dispnea nuova o in peggioramento</span></label>
+    <label class="chk"><input type="checkbox" id="rTvns"><span>Aritmie ventricolari non sostenute</span></label>
+    <label class="chk"><input type="checkbox" id="rTrop"><span>Troponina che resta alta o torna a salire</span></label>
+  </div>
+  <h4>Basso rischio</h4>
+  <label class="chk"><input type="checkbox" id="rStab"><span>Sintomi stabili o paucisintomatico<small>nessuno dei criteri qui sopra</small></span></label>
+  <h4>Imaging</h4>
+  <div class="row">
+    <span class="fl">FEVS<small>%, numero intero</small></span>
+    <input type="number" id="fevs" min="5" max="85" step="1" inputmode="numeric" placeholder="es. 55">
+    <label class="chk" style="border:none"><input type="checkbox" id="rWma"><span>Anomalie della cinetica regionale</span></label>
+  </div>
+  <div class="row">
+    <span class="fl">LGE miocardico alla CMR</span>
+    <span class="seg">
+      <label><input type="radio" name="lge" value="nd"><span>CMR non eseguita</span></label>
+      <label><input type="radio" name="lge" value="no"><span>assente</span></label>
+      <label><input type="radio" name="lge" value="lt2"><span>&lt;2 segmenti</span></label>
+      <label><input type="radio" name="lge" value="ge2"><span>≥2 segmenti</span></label>
+      <label><input type="radio" name="lge" value="est"><span>esteso <sup style="color:inherit">a</sup></span></label>
+    </span>
+  </div>
+  <p class="muted" style="font-size:12.5px"><b style="color:var(--accent-red)">a</b> — criteri che non portano da soli alla biopsia: decisione caso per caso secondo la causa sospettata (Tab. 7, nota a, p. 16).</p>
+  <h4>Per la biopsia <span class="pg">Rec. Table 1, p. 28</span></h4>
+  <label class="chk"><input type="checkbox" id="instab"><span>Instabilità emodinamica</span></label>
+  <div class="row" style="margin-top:6px">
+    <span class="fl">Risposta alla terapia convenzionale</span>
+    <span class="seg">
+      <label><input type="radio" name="mRisp" value="nv"><span>non ancora valutata</span></label>
+      <label><input type="radio" name="mRisp" value="si"><span>risponde</span></label>
+      <label><input type="radio" name="mRisp" value="no"><span>non risponde</span></label>
+    </span>
+  </div>
+</div>
+<div class="card" id="cardRisPeri">
+  <h3>Pericardite — criteri <span class="pg">Tab. 7, p. 16</span></h3>
+  <h4>Alto rischio — ne basta uno</h4>
+  <div class="due">
+    <label class="chk"><input type="checkbox" id="qTamp"><span>Tamponamento, clinico o all'imaging</span></label>
+    <label class="chk"><input type="checkbox" id="qFeb"><span>Febbre &gt;38 °C</span></label>
+    <label class="chk"><input type="checkbox" id="qEc"><span>Pericardite essudativo-costrittiva</span></label>
+    <label class="chk"><input type="checkbox" id="qFans"><span>Fallimento della terapia con FANS</span></label>
+    <label class="chk"><input type="checkbox" id="qInc"><span>Pericardite incessante</span></label>
+    <label class="chk"><input type="checkbox" id="qLge"><span>LGE pericardico esteso alla CMR</span></label>
+  </div>
+  <h4>Rischio intermedio</h4>
+  <div class="due">
+    <label class="chk"><input type="checkbox" id="qDx"><span>Segni o sintomi di scompenso destro</span></label>
+    <label class="chk"><input type="checkbox" id="qCostr"><span>Fisiologia costrittiva, qualunque sia il versamento</span></label>
+  </div>
+  <h4>Versamento e risposta</h4>
+  <div class="row">
+    <span class="fl">Versamento pericardico<small>mm in telediastole; 0 se assente</small></span>
+    <input type="number" id="peff" min="0" max="60" step="1" inputmode="numeric" placeholder="es. 6">
+  </div>
+  <div class="row">
+    <span class="fl">Risposta alla terapia adeguata<small>entro 1–2 settimane</small></span>
+    <span class="seg">
+      <label><input type="radio" name="qRisp" value="nv"><span>non ancora valutata</span></label>
+      <label><input type="radio" name="qRisp" value="si"><span>risponde</span></label>
+      <label><input type="radio" name="qRisp" value="no"><span>non risponde</span></label>
+    </span>
+  </div>
+</div>
+<div class="card" id="outRis"></div>
+
+<div class="stage"><span class="stage-n">4</span><span class="stage-t">Che cosa fare</span><span class="stage-w">Rec. Table 1 p. 28 · Fig. 5–7, 9–11</span></div>
+<div class="card" id="outDec"></div>
+<div class="card" id="outAlg"></div>
+
+<div class="card"><h3>Incoerenze della fonte</h3><div id="outInc"></div></div>
+<div class="card"><h3>Limiti per questo paziente</h3><ul class="lista" id="limiti"></ul></div>
+
+<div class="foot">
+  <strong>Fonte.</strong> Schulz-Menger J, Imazio M, et al. 2025 ESC Guidelines for the management of myocarditis and pericarditis. <em>Eur Heart J</em> 2025 (ehaf192) — terminologia e forme miste (Tab. 3, p. 11; § 8, p. 48), criteri diagnostici (Tab. 4, p. 13; § 3.3, pp. 12–15), criteri di Lake Louise aggiornati (Fig. 4, p. 14), stratificazione del rischio (Tab. 7, p. 16; pp. 19–22), algoritmi d'ingresso (Fig. 5–7, pp. 17–19) e per presentazione (Fig. 9–11, pp. 21–24), raccomandazioni sulla valutazione clinica (Rec. Table 1, p. 28), pericardite non ad alto rischio e segni d'allarme (p. 47; Tab. 16, p. 48). Ogni esito porta la pagina.<br><br>
+  Strumento personale di studio e consultazione: <strong>non sostituisce il giudizio clinico</strong>. Non calcola dosi. Non salva i dati e non li invia in rete.
+</div>
+
+</div>
+<script>
+(function () {
+  "use strict";
+
+  /* ═══ DATI ═══════════════════════════════════════════════════════════════
+     2025 ESC Guidelines for the management of myocarditis and pericarditis
+     (advance article ehaf192; pagine stampate = pagine del PDF).
+
+     Tab. 4, p. 13 — miocardite: definita = presentazione clinica + CMR o EMB
+       provata; possibile = presentazione + almeno 1 criterio aggiuntivo, CMR
+       o EMB incerte o non disponibili; improbabile/respinta = solo la
+       presentazione, senza criteri aggiuntivi. Pericardite: definita =
+       presentazione + >1 criterio aggiuntivo; possibile = 1; improbabile =
+       nessuno. Criteri aggiuntivi, miocardite: reperti clinici aspecifici;
+       ST-T all'ECG; troponina; strain, cinesi, FE ridotta; edema e/o LGE alla
+       CMR. Pericardite: sfregamenti; PR sottoslivellato, ST diffuso; PCR;
+       versamento nuovo o in aumento; edema e/o LGE pericardico alla CMR.
+       Nota: CMR provata = 2 su 2 criteri LLC aggiornati, incerta = 1 su 2,
+       respinta = CMR negativa. EMB: provata, incerta, respinta (patologi).
+       Nota c: con alterazioni ECG considerare/escludere sempre la miocardite.
+     p. 13 — la diagnosi di miocardite possibile si puo' fare con un solo
+       criterio LLC (T2 o T1) in uno scenario clinico appropriato.
+     Fig. 4, p. 14 — LLC: criterio T2 (edema), criterio T1 (mapping T1, ECV o
+       LGE); di supporto: anomalie pericardiche, disfunzione sistolica VS.
+     Tab. 3, p. 11 (e § 8, p. 48) — miopericardite: criteri definiti di
+       pericardite + troponina o CK-MB elevate SENZA compromissione VS nuova;
+       perimiocardite: la stessa cosa CON compromissione VS nuova.
+     Tab. 7, p. 16 — miocardite. Alto: scompenso acuto/shock; NYHA III-IV
+       refrattaria; arresto/sincope (a); FV/TV sostenuta (a); BAV di alto
+       grado (a); FEVS nuova <40% (a); LGE esteso (a). Intermedio: dispnea
+       nuova/progressiva; aritmie ventricolari non sostenute; troponina
+       persistente o recidivante; FEVS nuova 41-49% e/o WMA; FEVS >=50% e LGE
+       >=2 segmenti. Basso: sintomi stabili o paucisintomatico; FEVS >=50%
+       senza LGE o con LGE <2 segmenti. Pericardite. Alto: tamponamento;
+       febbre >38 °C; essudativo-costrittiva; fallimento dei FANS; incessante;
+       versamento >20 mm in telediastole; LGE pericardico esteso. Intermedio:
+       scompenso destro; versamento 10-20 mm; fisiologia costrittiva. Basso:
+       risposta alla terapia entro 1-2 settimane; versamento assente o
+       lieve; nessun LGE pericardico. Nota a: questi criteri non portano
+       direttamente alla biopsia, decisione caso per caso.
+     Fig. 7 nota b, p. 19 — un solo predittore della Tab. 7 basta per
+       l'alto rischio della pericardite: ricovero e ricerca eziologica.
+     p. 22 — scompenso acuto con FEVS <=40%: alto rischio.
+     Rec. Table 1, p. 28 — valutazione clinica completa I C; CMR nel sospetto
+       I B; ricovero nella pericardite ad alto rischio I B; ricovero nella
+       miocardite a rischio moderato-alto I C; EMB nell'alto rischio,
+       nell'instabilita' emodinamica, nell'intermedio che non risponde I C;
+       coronarografia o TC coronarica se si sospetta una SCA I C; ricovero
+       nella miocardite a basso rischio IIa C; sierologia di routine III C
+       (salvo epatite C, HIV, Lyme).
+     p. 47 — pericardite non ad alto rischio: ambulatoriale con controllo
+       ravvicinato entro 1-2 settimane. Rec. Table 15, p. 47 — follow-up entro
+       6 mesi in ogni miocardite I C; a lungo termine nella pericardite
+       incessante o ricorrente I C.
+     Tab. 16, p. 48 — mancata risposta ad aspirina o FANS dopo ALMENO 1
+       settimana (maggiore). */
+  var SOGLIE = {
+    fevsAlto: 40,     // Tab. 7: "<40%" alto
+    fevsInterMin: 41, // Tab. 7: "41%-49%" intermedio
+    fevsConserv: 50,  // Tab. 7: ">=50%" conservata
+    peffAlto: 20,     // Tab. 7: ">20 mm" alto
+    peffInter: 10     // Tab. 7: "10-20 mm" intermedio
+  };
+  var ESC = "ESC 2025, ";
+  var P = {
+    tab3: ESC + "Tab. 3, p. 11", tab4: ESC + "Tab. 4, p. 13", llc: ESC + "Fig. 4, p. 14; Tab. 4, p. 13",
+    tab7: ESC + "Tab. 7, p. 16", notaA: ESC + "Tab. 7, nota a, p. 16", rec1: ESC + "Rec. Table 1, p. 28",
+    fig5: ESC + "Fig. 5, p. 17", fig6: ESC + "Fig. 6, p. 18", fig7: ESC + "Fig. 7, p. 19",
+    fig9: ESC + "Fig. 9, p. 21", fig10: ESC + "Fig. 10, p. 23", fig11: ESC + "Fig. 11, p. 24",
+    fig13: ESC + "Fig. 13, p. 27", p47: ESC + "p. 47", rec15: ESC + "Rec. Table 15, p. 47", tab16: ESC + "Tab. 16, p. 48"
+  };
+  var ALTO_MIO = [ // [id, etichetta, nota a] — Tab. 7, p. 16
+    ["rShock", "scompenso acuto o shock cardiogeno", false],
+    ["rNyha", "dispnea NYHA III–IV refrattaria", false],
+    ["rArresto", "arresto cardiaco o sincope", true],
+    ["rTv", "FV o TV sostenuta", true],
+    ["rBav", "BAV di alto grado", true]
+  ];
+  var INTER_MIO = [["rDisp", "dispnea nuova o in peggioramento"], ["rTvns", "aritmie ventricolari non sostenute"], ["rTrop", "troponina persistente o con nuovi rialzi"]];
+  var ALTO_PERI = [["qTamp", "tamponamento"], ["qFeb", "febbre &gt;38 °C"], ["qEc", "pericardite essudativo-costrittiva"], ["qFans", "fallimento della terapia con FANS"], ["qInc", "pericardite incessante"], ["qLge", "LGE pericardico esteso alla CMR"]];
+  var INTER_PERI = [["qDx", "segni o sintomi di scompenso destro"], ["qCostr", "fisiologia costrittiva"]];
+  var CRIT_MIO = [["mClin", "reperti clinici aspecifici"], ["mEcg", "alterazioni ST-T all'ECG"]];
+  var CRIT_PERI = [["pRub", "sfregamenti pericardici"], ["pEcg", "PR sottoslivellato o ST sopraslivellato diffuso"], ["pPcr", "PCR elevata"], ["pVers", "versamento nuovo o in aumento"], ["pCmr", "edema e/o LGE pericardico alla CMR"]];
+  var DOM = { fevs:[5, 85, true], peff:[0, 60, false] }; // limiti di plausibilita' dello strumento, non della fonte; true = intero
+
+  /* ═══ FUNZIONI PURE ═══════════════════════════════════════════════════ */
+  function fuoriDominio(s) {
+    var e = [], k;
+    for (k in DOM) if (DOM.hasOwnProperty(k) && s[k] !== null) {
+      if (s[k] < DOM[k][0] || s[k] > DOM[k][1] || (DOM[k][2] && Math.round(s[k]) !== s[k])) e.push(k);
+    }
+    return e;
+  }
+  function pulisci(s) {
+    var c = {}, k, fd = fuoriDominio(s);
+    for (k in s) if (s.hasOwnProperty(k)) c[k] = s[k];
+    for (var i = 0; i < fd.length; i++) c[fd[i]] = null;
+    c.fuoriDom = fd;
+    return c;
+  }
+  function vuoleMio(s) { return s.ent === "mio" || s.ent === "entrambe"; }
+  function vuolePeri(s) { return s.ent === "peri" || s.ent === "entrambe"; }
+
+  // CMR secondo i criteri di Lake Louise aggiornati (Fig. 4, p. 14; nota della Tab. 4)
+  function letturaCmr(s) {
+    var v = [s.t2 || "nd", s.t1 || "nd"], pos = 0, neg = 0;
+    for (var i = 0; i < 2; i++) { if (v[i] === "pos") pos++; else if (v[i] === "neg") neg++; }
+    if (pos === 2) return { k:"provata", pos:2 };
+    if (pos === 1) return { k:"incerta", pos:1, altroNd: neg === 0 };
+    if (neg === 2) return { k:"respinta", pos:0 };
+    if (neg === 1) return { k:"incompleta", pos:0 };
+    return { k:"nd", pos:0 };
+  }
+
+  function diagMio(s) {
+    if (s.pres === "") return { cat:null, perche:"indicare la presentazione clinica (passo 1)" };
+    if (s.pres === "asint") return { cat:null, asint:true, perche:"la Tab. 4 parte da una presentazione clinica" };
+    var cmr = letturaCmr(s), add = [], i;
+    for (i = 0; i < CRIT_MIO.length; i++) if (s[CRIT_MIO[i][0]]) add.push(CRIT_MIO[i][1]);
+    if (s.trop) add.push("troponina elevata");
+    if (s.vs === "nuova" || s.vs === "nota") add.push("strain, cinesi o FE alterati");
+    if (cmr.pos >= 1) add.push("edema e/o danno miocardico alla CMR");
+    var emb = s.emb || "nd";
+    if (cmr.k === "provata" || emb === "provata") {
+      return { cat:"definita", cmr:cmr, add:add, via: cmr.k === "provata" && emb === "provata" ? "CMR ed EMB provate" : (cmr.k === "provata" ? "CMR provata (2 su 2 criteri LLC)" : "EMB provata"),
+               discorde: (cmr.k === "provata" && emb === "respinta") || (emb === "provata" && cmr.k === "respinta") };
+    }
+    if (add.length === 0) return { cat:"improbabile", cmr:cmr, add:add, manca:"almeno un criterio aggiuntivo per la possibile" };
+    var cmrR = cmr.k === "respinta", embR = emb === "respinta";
+    if (cmrR && embR) return { cat:"respinta", cmr:cmr, add:add };
+    if (cmrR || embR) {
+      var altro = cmrR ? emb : cmr.k;
+      if (altro === "incerta") return { cat:"possibile", cmr:cmr, add:add, manca:"CMR con 2 su 2 criteri LLC o EMB provata per la definita" };
+      return { cat:"gap", cmr:cmr, add:add, neg: cmrR ? "CMR" : "EMB", nd: cmrR ? "EMB" : "CMR" };
+    }
+    return { cat:"possibile", cmr:cmr, add:add, manca:"CMR con 2 su 2 criteri LLC o EMB provata per la definita" };
+  }
+
+  function diagPeri(s) {
+    if (s.pres === "") return { cat:null, perche:"indicare la presentazione clinica (passo 1)" };
+    if (s.pres === "asint") return { cat:null, asint:true, perche:"la Tab. 4 parte da una presentazione clinica" };
+    var add = [];
+    for (var i = 0; i < CRIT_PERI.length; i++) if (s[CRIT_PERI[i][0]]) add.push(CRIT_PERI[i][1]);
+    if (add.length >= 2) return { cat:"definita", add:add };
+    if (add.length === 1) return { cat:"possibile", add:add, manca:"un secondo criterio aggiuntivo per la definita (ne servono più di uno)" };
+    return { cat:"improbabile", add:add, manca:"almeno un criterio aggiuntivo per la possibile" };
+  }
+
+  // forma mista (Tab. 3, note a e b, p. 11; § 8, p. 48)
+  function formaMista(s, dp) {
+    if (!dp || dp.cat === null) return { f:null, perche:"serve la diagnosi di pericardite" };
+    if (dp.cat !== "definita") return { f:null, perche:"la forma mista parte da criteri <b>definiti</b> di pericardite" };
+    if (!s.trop) return { f:null, perche:"senza rialzo di troponina o CK-MB: nessun coinvolgimento miocardico documentato" };
+    if (s.vs === "") return { f:null, perche:"serve la funzione VS: decide fra miopericardite e perimiocardite" };
+    return s.vs === "nuova" ? { f:"perimiocardite" } : { f:"miopericardite" };
+  }
+
+  function rischioMio(s) {
+    var alti = [], inter = [], bassi = [], note = [], i, gap40 = false, fevsUsa = true;
+    for (i = 0; i < ALTO_MIO.length; i++) if (s[ALTO_MIO[i][0]]) alti.push({ t:ALTO_MIO[i][1], a:ALTO_MIO[i][2] });
+    // la presentazione con scompenso acuto (passo 1) e' gia' il criterio clinico d'alto rischio "Acute HF" (Tab. 7, p. 16)
+    if (s.pres === "scompenso" && !s.rShock) alti.unshift({ t:"scompenso acuto — dalla presentazione del passo 1", a:false, daPres:true });
+    // la presentazione aritmica non dice quale aritmia: la Tab. 7 ne distingue tre livelli, e lo strumento non indovina
+    if (s.pres === "aritmia" && !s.rArresto && !s.rTv && !s.rBav && !s.rTvns) note.push("aritmiaDaSegnare");
+    for (i = 0; i < INTER_MIO.length; i++) if (s[INTER_MIO[i][0]]) inter.push({ t:INTER_MIO[i][1] });
+    var f = s.fevs;
+    if (f !== null && f < SOGLIE.fevsConserv && s.vs === "nota") { fevsUsa = false; note.push("fevsNota"); }
+    if (f !== null && fevsUsa) {
+      if (f < SOGLIE.fevsAlto) alti.push({ t:"FEVS " + f + "% (&lt;40%, ridotta di nuovo)", a:true });
+      else if (f === SOGLIE.fevsAlto) gap40 = true;
+      else if (f < SOGLIE.fevsConserv) inter.push({ t:"FEVS " + f + "% (41–49%, lievemente ridotta di nuovo)" });
+    }
+    if (s.rWma) inter.push({ t:"anomalie della cinetica regionale" });
+    if (s.lge === "est") alti.push({ t:"LGE esteso alla CMR", a:true });
+    if (f !== null && f >= SOGLIE.fevsConserv) {
+      if (s.lge === "ge2") inter.push({ t:"FEVS " + f + "% conservata con LGE ≥2 segmenti" });
+      else if (s.lge === "no" || s.lge === "lt2") bassi.push({ t:"FEVS " + f + "% conservata, LGE " + (s.lge === "no" ? "assente" : "&lt;2 segmenti") });
+    }
+    if (s.rStab && (alti.length || inter.length)) note.push("stabContra");
+    var onlyA = alti.length > 0;
+    for (i = 0; i < alti.length; i++) if (!alti[i].a) onlyA = false;
+    var r = { alti:alti, inter:inter, bassi:bassi, note:note, onlyA:onlyA, gap40:gap40 };
+    if (alti.length) { r.cat = "alto"; return r; }
+    if (gap40) { r.cat = "gap40"; return r; }
+    if (inter.length) { r.cat = "intermedio"; return r; }
+    if (f === null) { r.cat = null; r.perche = "serve la FEVS all'eco (passo 3)"; return r; }
+    if (!fevsUsa) { r.cat = null; r.perche = "FEVS ridotta già nota: la Tab. 7 parla di riduzione <b>di nuova insorgenza</b>, e non la assegna"; return r; }
+    if (!s.rStab) { r.cat = null; r.perche = "segnare se i sintomi sono stabili o paucisintomatici, o i criteri presenti"; return r; }
+    bassi.unshift({ t:"sintomi stabili o paucisintomatico" });
+    if (s.lge === "" || s.lge === "nd") { r.cat = "nonalto"; r.perche = "la CMR (LGE) completa la classe: basso se LGE assente o &lt;2 segmenti, intermedio se ≥2"; return r; }
+    r.cat = "basso";
+    return r;
+  }
+
+  function rischioPeri(s) {
+    var alti = [], inter = [], bassi = [], i, p = s.peff;
+    for (i = 0; i < ALTO_PERI.length; i++) if (s[ALTO_PERI[i][0]]) alti.push({ t:ALTO_PERI[i][1] });
+    for (i = 0; i < INTER_PERI.length; i++) if (s[INTER_PERI[i][0]]) inter.push({ t:INTER_PERI[i][1] });
+    if (p !== null) {
+      if (p > SOGLIE.peffAlto) alti.push({ t:"versamento di " + p + " mm (&gt;20 mm)" });
+      else if (p >= SOGLIE.peffInter) inter.push({ t:"versamento di " + p + " mm (10–20 mm)" });
+      else bassi.push({ t: p === 0 ? "versamento assente" : "versamento di " + p + " mm (sotto 10: assente o lieve)" });
+    }
+    var r = { alti:alti, inter:inter, bassi:bassi };
+    if (alti.length) { r.cat = "alto"; return r; }
+    if (inter.length) { r.cat = "intermedio"; return r; }
+    if (p === null) { r.cat = null; r.perche = "serve il versamento all'eco in mm (0 se assente)"; return r; }
+    if (s.qRisp === "si") { bassi.unshift({ t:"risposta alla terapia entro 1–2 settimane" }); r.cat = "basso"; return r; }
+    if (s.qRisp === "no") { r.cat = "rivalutare"; return r; }
+    r.cat = "nonalto";
+    return r;
+  }
+
+  function cmrFatta(s) { return (s.t2 !== "" && s.t2 !== "nd") || (s.t1 !== "" && s.t1 !== "nd") || (s.lge !== "" && s.lge !== "nd"); }
+
+  // decisione per la miocardite: Rec. Table 1 (p. 28), Fig. 5-6, 9-11
+  function decMio(s, rm) {
+    var L = [], dove = null;
+    L.push({ st:"fat", t:"Valutazione clinica completa: anamnesi, esame obiettivo, RX torace, biomarcatori (hs-Tn, PCR, NT-proBNP), ECG, ecocardiogramma", c:"I", l:"C", pg:P.rec1 });
+    if (s.cad === "presente") {
+      L.push({ st:"att", t:"Coronaropatia ostruttiva: <b>trattarla</b> secondo le linee guida della SCA; se non spiega da sola i sintomi, CMR", pg:P.fig5 + "; " + P.fig9 });
+      return { passi:L, dove:{ k:"k3", t:"trattare la CAD" }, cad:true };
+    }
+    if (s.cad === "daesc") L.push({ st:"att", t:"<b>Escludere la coronaropatia ostruttiva</b>: coronarografia o TC coronarica secondo la probabilità clinica", c:"I", l:"C", pg:P.rec1 + "; " + P.fig5 });
+    var invio = s.porta === "amb" && s.trop;
+    if (invio) L.push({ st: s.cad === "daesc" ? "dopo" : "att", t:"Troponina elevata in ambulatorio: <b>inviare in ospedale</b> e seguire l'algoritmo del paziente ricoverato", pg:P.fig6 + " → " + P.fig5 });
+    // ricovero
+    var c = rm.cat;
+    if (c === "alto" || c === "intermedio" || c === "gap40") {
+      L.push({ st:"att", t:"<b>Ricovero</b> per monitoraggio e terapia" + (c === "gap40" ? " — vale in entrambe le letture della FEVS 40%" : "") + "; con shock cardiogeno o insufficienza respiratoria, terapia intensiva", c:"I", l:"C", pg:P.rec1 + "; " + P.fig10 });
+      dove = { k:"k4", t:"ricovero I C" };
+    } else if (c === "basso") {
+      L.push({ st:"att", t:"<b>Ricovero</b> da considerare per monitoraggio e terapia" + (s.porta === "amb" && !s.trop ? "; nell'algoritmo ambulatoriale il basso rischio si tratta a domicilio (vedi incoerenze)" : "; nel PS si resta in reparto e si dimette appena possibile"), c:"IIa", l:"C", pg:P.rec1 + (s.porta === "amb" ? "; " + P.fig6 : "; " + P.fig5) });
+      dove = { k:"k2", t: s.porta === "amb" && !s.trop ? "ambulatorio o ricovero IIa C" : "ricovero IIa C" };
+    } else if (c === "nonalto") {
+      if (s.porta === "amb" && !s.trop) { L.push({ st:"att", t:"Nessun criterio d'alto o intermedio rischio: <b>CMR</b>, poi la classe completa decide (basso → terapia ambulatoriale; intermedio o alto → ricovero)", pg:P.fig6 }); dove = { k:"k1", t:"CMR, poi classe" }; }
+      else { L.push({ st:"att", t:"<b>Ricovero in reparto</b> e CMR; dopo la classe completa: basso → dimissione appena possibile (ricovero IIa C), intermedio → I C", pg:P.fig5 + "; " + P.rec1 }); dove = { k:"k1", t:"reparto, poi classe" }; }
+    } else {
+      L.push({ st:"dopo", t:"Ricovero: dipende dalla categoria di rischio — " + (rm.perche || "completarla"), pg:P.rec1 });
+    }
+    if (invio && dove) dove = { k:dove.k, t:"invio in ospedale · " + dove.t };
+    else if (invio) dove = { k:"k3", t:"invio in ospedale" };
+    // CMR o EMB
+    var fatta = cmrFatta(s), embFatta = s.emb !== "" && s.emb !== "nd";
+    var emb = null;
+    if (c === "alto" && !rm.onlyA) emb = "si";
+    else if (c === "alto" && rm.onlyA) emb = s.instab ? "si" : "caso";
+    else if (s.instab) emb = "si";
+    else if (c === "gap40") emb = "caso";
+    else if (c === "intermedio" && s.mRisp === "no") emb = "si";
+    if (emb === "si") {
+      var perc = [];
+      if (c === "alto" && !rm.onlyA) perc.push("alto rischio");
+      if (s.instab) perc.push("instabilità emodinamica");
+      if (c === "intermedio" && s.mRisp === "no") perc.push("rischio intermedio che non risponde alla terapia convenzionale");
+      L.push({ st: embFatta ? "fat" : "att", t:(embFatta ? "EMB già eseguita. " : "") + "<b>Biopsia endomiocardica</b> (" + perc.join(", ") + "): istologia, immunoistologia e ricerca del genoma virale su tessuto e sangue", c:"I", l:"C", pg:P.rec1 });
+      L.push({ st: fatta ? "fat" : "dopo", t: fatta ? "CMR già eseguita" : "CMR prima della dimissione, se non già fatta", c:"I", l:"B", pg:P.rec1 + "; " + P.fig9 });
+    } else {
+      if (emb === "caso") L.push({ st:"att", t:"<b>Biopsia endomiocardica: decisione caso per caso</b> secondo la causa sospettata — " + (c === "gap40" ? "se la FEVS 40% si legge come alto rischio, è un criterio con nota a" : "l'alto rischio viene solo da criteri con nota a (" + nomiA(rm) + ")") + ". La Rec. Table 1 dà l'EMB I C nell'alto rischio: la nota a la restringe", pg:P.notaA + "; " + P.rec1 });
+      L.push({ st: fatta ? "fat" : "att", t: fatta ? "CMR eseguita: la sua lettura entra nel passo 2" : "<b>CMR</b> con i criteri di Lake Louise aggiornati, per la diagnosi non invasiva", c:"I", l:"B", pg:P.rec1 });
+      if (c === "intermedio" && s.mRisp !== "no") L.push({ st:"dopo", t:"Se non risponde alla terapia convenzionale: biopsia endomiocardica", c:"I", l:"C", pg:P.rec1 });
+      if (c === "intermedio" || c === "alto" || c === "gap40") L.push({ st:"dopo", t:"Terapia dello scompenso e antiaritmica e/o della causa specifica; se non migliora, discussione nel team multidisciplinare IMPS", pg:P.fig5 });
+    }
+    L.push({ st:"dopo", t:"Ricerca eziologica secondo la causa sospettata e il bisogno clinico", pg:P.fig9 + "; " + P.fig10 });
+    L.push({ st:"esc", t:"<b>Sierologia virale di routine: no</b>, salvo epatite C, HIV e Lyme", c:"III", l:"C", pg:P.rec1 });
+    L.push({ st:"dopo", t:"Follow-up con clinica, biomarcatori, ECG, test da sforzo, Holter, eco e CMR <b>entro 6 mesi</b> dal ricovero", c:"I", l:"C", pg:P.rec15 });
+    return { passi:L, dove:dove, emb:emb };
+  }
+  function nomiA(rm) { var n = []; for (var i = 0; i < rm.alti.length; i++) n.push(rm.alti[i].t); return n.join(", "); }
+
+  // decisione per la pericardite: Rec. Table 1 (p. 28), Fig. 7 (p. 19), p. 47
+  function decPeri(s, rp) {
+    var L = [], dove = null, c = rp.cat, conMio = vuoleMio(s);
+    if (conMio) L.push({ st:"fat", t:"Valutazione clinica, coronaropatia e sierologia: come nella miocardite, qui sopra" });
+    else L.push({ st:"fat", t:"Valutazione clinica completa: anamnesi, esame obiettivo, ECG, eco, RX, esami di routine con PCR e troponina", c:"I", l:"C", pg:P.rec1 + "; " + P.fig7 });
+    if (s.cad === "presente") {
+      if (!conMio) L.push({ st:"att", t:"Coronaropatia ostruttiva: <b>trattarla</b> secondo le linee guida della SCA", pg:P.fig9 });
+      return { passi:L, dove:{ k:"k3", t:"trattare la CAD" }, cad:true };
+    }
+    if (s.cad === "daesc" && !conMio) L.push({ st:"att", t:"<b>Escludere la coronaropatia ostruttiva</b>: coronarografia o TC coronarica secondo la probabilità clinica", c:"I", l:"C", pg:P.rec1 });
+    if (c === "alto") {
+      L.push({ st:"att", t:"<b>Ricovero</b> per monitoraggio e terapia, con <b>ricerca eziologica</b> e terapia antinfiammatoria — basta un predittore", c:"I", l:"B", pg:P.rec1 + "; " + P.fig7 });
+      dove = { k:"k4", t:"ricovero I B" };
+    } else if (c === "intermedio") {
+      L.push({ st:"att", t:"<b>Ricovero o follow-up ravvicinato</b>, con ricerca eziologica. La Rec. Table 1 non dà una classe al ricovero dell'intermedio", pg:P.fig7 });
+      dove = { k:"k2", t:"ricovero o follow-up stretto" };
+    } else if (c === "nonalto") {
+      L.push({ st:"att", t:"<b>Gestione ambulatoriale</b> con terapia antinfiammatoria empirica e <b>controllo entro 1–2 settimane</b>; niente ricerca eziologica né ricovero se la risposta è buona", pg:P.fig7 + "; " + P.p47 });
+      L.push({ st:"dopo", t:"Al controllo: risponde → basso rischio, terapia ambulatoriale; non risponde → rivalutare il rischio (intermedio o alto)", pg:P.fig7 });
+      dove = { k:"k0", t:"ambulatorio, controllo a 1–2 sett." };
+    } else if (c === "basso") {
+      L.push({ st:"att", t:"<b>Terapia ambulatoriale</b>: risposta alla terapia entro 1–2 settimane, nessun criterio d'intermedio o alto rischio", pg:P.fig7 });
+      dove = { k:"k0", t:"ambulatorio" };
+    } else if (c === "rivalutare") {
+      L.push({ st:"att", t:"<b>Non risponde</b> a 1–2 settimane: rivalutare il rischio — intermedio (ricovero o follow-up stretto, ricerca eziologica) o alto (ricovero I B). Se la terapia era un FANS, il fallimento è un criterio d'alto rischio: segnarlo al passo 3", pg:P.fig7 + "; " + P.tab7 });
+      L.push({ st:"dopo", t:"Accertamenti ulteriori per risposta assente o incompleta alla terapia antinfiammatoria empirica", pg:P.p47 });
+      dove = { k:"k3", t:"rivalutare il rischio" };
+    } else {
+      L.push({ st:"dopo", t:"Dove curare: dipende dalla categoria di rischio — " + (rp.perche || "completarla"), pg:P.fig7 });
+    }
+    L.push({ st: s.pCmr || s.qLge ? "fat" : "dopo", t: s.pCmr || s.qLge ? "CMR eseguita" : "CMR nel sospetto di pericardite, per la diagnosi non invasiva dell'infiammazione", c:"I", l:"B", pg:P.rec1 });
+    if (s.qEc || s.qCostr) L.push({ st:"dopo", t:"Costrizione: seguire l'algoritmo della costrizione (TC per le calcificazioni, CMR per l'infiammazione)", pg:P.fig13 });
+    if (s.qInc) L.push({ st:"dopo", t:"Pericardite incessante: follow-up a lungo termine", c:"I", l:"C", pg:P.rec15 });
+    if (!conMio) L.push({ st:"esc", t:"<b>Sierologia virale di routine: no</b>, salvo epatite C, HIV e Lyme", c:"III", l:"C", pg:P.rec1 });
+    return { passi:L, dove:dove };
+  }
+
+  function algoritmi(s, dm, rm) {
+    var A = [];
+    if (vuoleMio(s)) {
+      if (s.porta === "ps") A.push("Miocardite al pronto soccorso: <b>Fig. 5</b>" + pgs(P.fig5));
+      else if (s.porta === "amb") A.push("Miocardite in ambulatorio: <b>Fig. 6</b>" + pgs(P.fig6) + "; con troponina elevata, o rischio intermedio o alto, si passa alla Fig. 5");
+    }
+    if (vuolePeri(s)) A.push("Pericardite: <b>Fig. 7</b>" + pgs(P.fig7));
+    if (s.pres === "dolore") A.push("Dolore toracico: <b>Fig. 9</b>" + pgs(P.fig9) + " — con criteri di pericardite rimanda alla Fig. 7");
+    else if (s.pres === "scompenso") A.push("Scompenso acuto: <b>Fig. 10</b>" + pgs(P.fig10) + " — shock o insufficienza respiratoria: terapia intensiva; sospetta miocardite fulminante: biopsia endomiocardica");
+    else if (s.pres === "aritmia") A.push("Aritmie: <b>Fig. 11</b>" + pgs(P.fig11) + " — con instabilità emodinamica, cardioversione, defibrillazione, pacing transcutaneo o ALS (Classe I nella figura)");
+    if (vuolePeri(s) && (s.qEc || s.qCostr)) A.push("Costrizione: <b>Fig. 13</b>" + pgs(P.fig13));
+    return A;
+  }
+
+  /* ═══ STATO E DISEGNO ═════════════════════════════════════════════════ */
+  function el(id) { return document.getElementById(id); }
+  function ck(id) { var e = el(id); return !!(e && e.checked); }
+  function num(id) {
+    var e = el(id); if (!e) return null;
+    var v = e.value.replace(",", ".").trim();
+    if (v === "") return null;
+    var n = parseFloat(v);
+    return isFinite(n) ? n : null;
+  }
+  function radio(n) { var e = document.querySelector('input[name="' + n + '"]:checked'); return e ? e.value : ""; }
+  function pgs(p) { return ' <span class="pg">' + p + "</span>"; }
+  function corPill(c, l) { var k = { "I":"c1", "IIa":"c2a", "IIb":"c2b", "III":"c3" }[c]; return '<span class="cor ' + k + '">' + c + "</span>" + (l ? ' <span class="cor ' + k + '" style="opacity:.85">' + l + "</span>" : ""); }
+  function nota(g, t) { return '<div class="nota ' + (g || "") + '">' + t + "</div>"; }
+  function chip(k, t) { return '<span class="cat ' + k + '">' + t + "</span>"; }
+  function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+
+  var CK_IDS = ["trop", "mClin", "mEcg", "pRub", "pEcg", "pPcr", "pVers", "pCmr", "rShock", "rNyha", "rArresto", "rTv", "rBav", "rDisp", "rTvns", "rTrop", "rStab", "rWma", "instab",
+                "qTamp", "qFeb", "qEc", "qFans", "qInc", "qLge", "qDx", "qCostr"];
+  var RADIO = ["ent", "porta", "pres", "cad", "vs", "t2", "t1", "emb", "lge", "mRisp", "qRisp"];
+  function S() {
+    var s = { fevs:num("fevs"), peff:num("peff") }, i;
+    for (i = 0; i < CK_IDS.length; i++) s[CK_IDS[i]] = ck(CK_IDS[i]);
+    for (i = 0; i < RADIO.length; i++) s[RADIO[i]] = radio(RADIO[i]);
+    return s;
+  }
+
+  var ETICH = { fevs:"FEVS (intero, atteso 5–85%)", peff:"versamento (atteso 0–60 mm)" };
+  var DIA_LAB = { definita:["k1", "definita"], possibile:["k2", "possibile"], improbabile:["kx", "improbabile"], respinta:["kx", "respinta"], gap:["k3", "non assegnata"] };
+  var RIS_LAB = { alto:["k4", "alto"], intermedio:["k2", "intermedio"], basso:["k0", "basso"], nonalto:["k1", "non alto — da completare"], gap40:["k3", "intermedio o alto"], rivalutare:["k3", "intermedio o alto — rivalutare"] };
+
+  function passiHtml(L) {
+    var ICO = { att:"→", fat:"✓", dopo:"·", esc:"✗" }, h = "", primo = true;
+    for (var i = 0; i < L.length; i++) {
+      var p = L[i], st = p.st;
+      if (st === "att") { if (primo) primo = false; else st = "dopo"; }
+      h += '<div class="passo ' + st + '"><span class="ico">' + ICO[st] + '</span><span class="tx">' + p.t + (p.c ? " " + corPill(p.c, p.l) : "") + (p.pg ? pgs(p.pg) : "") + "</span></div>";
+    }
+    return h;
+  }
+  function critHtml(r) {
+    var h = '<div class="crit">', i;
+    for (i = 0; i < r.alti.length; i++) h += '<div class="ck"><span class="s no">▲</span><span><b>alto</b> — ' + r.alti[i].t + (r.alti[i].a ? ' <sup style="color:var(--accent-red);font-weight:700">a</sup>' : "") + "</span></div>";
+    for (i = 0; i < r.inter.length; i++) h += '<div class="ck"><span class="s mid">■</span><span><b>intermedio</b> — ' + r.inter[i].t + "</span></div>";
+    for (i = 0; i < r.bassi.length; i++) h += '<div class="ck"><span class="s ok">▼</span><span><b>basso</b> — ' + r.bassi[i].t + "</span></div>";
+    if (!r.alti.length && !r.inter.length && !r.bassi.length) h += '<div class="ck"><span class="s nd">?</span><span>nessun criterio segnato</span></div>';
+    return h + "</div>";
+  }
+
+  function disegna() {
+    var s = pulisci(S());
+    var mio = vuoleMio(s), peri = vuolePeri(s), nessuna = s.ent === "";
+    el("cardDiaMio").className = "card" + (mio || nessuna ? "" : " hide");
+    el("cardRisMio").className = "card" + (mio || nessuna ? "" : " hide");
+    el("cardDiaPeri").className = "card" + (peri || nessuna ? "" : " hide");
+    el("cardRisPeri").className = "card" + (peri || nessuna ? "" : " hide");
+
+    var dm = mio ? diagMio(s) : null, dp = peri ? diagPeri(s) : null, fm = peri ? formaMista(s, dp) : null;
+    var rm = mio ? rischioMio(s) : null, rp = peri ? rischioPeri(s) : null;
+    var dom = "";
+    if (s.fuoriDom.length) {
+      var l = [];
+      for (var q = 0; q < s.fuoriDom.length; q++) l.push(ETICH[s.fuoriDom[q]]);
+      dom = nota("stop", "<b>Valore fuori dominio, ignorato:</b> " + l.join("; ") + ". Lo strumento lo tratta come non inserito.");
+    }
+
+    /* (a) · diagnosi */
+    var h = "<h3>Diagnosi — Tab. 4, p. 13</h3>";
+    if (nessuna) h += '<div class="esito">' + chip("kx", "—") + '<span class="muted">scegliere che cosa si sospetta (passo 1)</span></div>';
+    if (mio) {
+      h += '<div class="ent">Miocardite</div>';
+      if (dm.cat === null) {
+        h += '<div class="esito">' + chip("kx", "—") + '<span class="muted">' + dm.perche + "</span></div>";
+      } else {
+        var lb = DIA_LAB[dm.cat];
+        h += '<div class="esito"><span class="big">' + (dm.cat === "gap" ? "Non assegnata dalla Tab. 4" : "Miocardite " + lb[1]) + "</span>" + chip(lb[0], lb[1]) + "</div>";
+        var cm = { provata:"<b>provata</b> — 2 su 2 criteri", incerta:"<b>incerta</b> — 1 su 2 criteri" + (dm.cmr.altroNd ? " (l'altro non valutato: può diventare provata)" : ""), respinta:"<b>respinta</b> — CMR negativa", incompleta:"<b>incompleta</b> — un criterio negativo, l'altro non valutato", nd:"non disponibile" }[dm.cmr.k];
+        h += '<div class="crit"><div class="ck"><span class="s nd">·</span><span>CMR secondo Lake Louise aggiornati: ' + cm + pgs(P.llc) + "</span></div>";
+        h += '<div class="ck"><span class="s nd">·</span><span>Criteri aggiuntivi: ' + (dm.add.length ? dm.add.join("; ") + " (" + dm.add.length + ")" : "nessuno") + pgs(P.tab4) + "</span></div></div>";
+        if (dm.cat === "definita") h += nota("info", "Presentazione clinica e <b>" + dm.via + "</b>" + pgs(P.tab4) + "." + (dm.discorde ? " <b>CMR ed EMB discordanti</b>: la Tab. 4 si accontenta di una delle due provata; la discordanza va discussa." : ""));
+        if (dm.cat === "possibile" || dm.cat === "improbabile") h += nota("", "<b>Per salire di categoria manca:</b> " + dm.manca + pgs(P.tab4) + ".");
+        if (dm.cat === "possibile" && dm.cmr.k === "incerta") h += nota("info", "Con un solo criterio LLC positivo la miocardite <b>possibile</b> si può porre in uno scenario clinico appropriato, con specificità minore" + pgs(ESC + "p. 13") + ".");
+        if (dm.cat === "respinta") h += nota("", "CMR ed EMB entrambe negative: la Tab. 4 non ha una riga per chi, con due esami negativi, ha criteri aggiuntivi; lo strumento legge <b>respinta</b> dalla categoria degli esami" + pgs(P.tab4) + ".");
+        if (dm.cat === "gap") h += nota("stop", "<b>" + dm.neg + " negativa</b>, " + dm.nd + " non disponibile, con " + dm.add.length + " criteri aggiuntivi: la Tab. 4 non assegna il caso. Due letture: <b>possibile</b>, perché la " + dm.nd + " «non è disponibile»; <b>improbabile/respinta</b>, perché la " + dm.neg + " è «respinta». Lo strumento non sceglie" + pgs(P.tab4) + ".");
+      }
+      if (dm.asint) h += nota("info", "Casi asintomatici esistono, rari: per esempio da farmaci con una storia chiara, come gli inibitori dei checkpoint immunitari" + pgs(P.tab4 + ", nota b") + ". Fuori dallo schema della tabella.");
+    }
+    if (peri) {
+      h += '<div class="ent">Pericardite</div>';
+      if (dp.cat === null) {
+        h += '<div class="esito">' + chip("kx", "—") + '<span class="muted">' + dp.perche + "</span></div>";
+      } else {
+        var lp = DIA_LAB[dp.cat];
+        h += '<div class="esito"><span class="big">Pericardite ' + lp[1] + "</span>" + chip(lp[0], lp[1]) + "</div>";
+        h += '<div class="crit"><div class="ck"><span class="s nd">·</span><span>Criteri aggiuntivi: ' + (dp.add.length ? dp.add.join("; ") + " (" + dp.add.length + ")" : "nessuno") + " — per la definita ne serve più di uno" + pgs(P.tab4) + "</span></div></div>";
+        if (dp.manca) h += nota("", "<b>Per salire di categoria manca:</b> " + dp.manca + pgs(P.tab4) + ".");
+        if (s.pEcg) h += nota("info", "Il pericardio è elettricamente muto: le alterazioni ECG indicano un coinvolgimento del miocardio, e la miocardite va sempre considerata o esclusa" + pgs(P.tab4 + ", nota c; p. 15") + ".");
+      }
+      h += '<div class="ent">Forma mista</div>';
+      if (fm.f) {
+        h += '<div class="esito"><span class="big">' + cap(fm.f) + "</span>" + chip(fm.f === "perimiocardite" ? "k3" : "k1", fm.f === "perimiocardite" ? "miocardite prevalente" : "pericardite prevalente") + "</div>";
+        h += nota("info", "Pericardite definita con troponina o CK-MB elevate, " + (fm.f === "perimiocardite" ? "<b>con</b> compromissione VS regionale o globale di nuova insorgenza" : "<b>senza</b> compromissione VS di nuova insorgenza") + pgs(P.tab3 + " (note a, b); p. 48") + "." + (fm.f === "perimiocardite" && s.ent === "peri" ? " <b>La miocardite prevale:</b> scegliere «entrambe» al passo 1 per stratificarla." : ""));
+      } else {
+        h += '<div class="esito">' + chip("kx", "—") + '<span class="muted">' + fm.perche + "</span></div>";
+      }
+    }
+    el("outDia").innerHTML = dom + h;
+
+    /* (b) · rischio */
+    var hr = "<h3>Categoria di rischio — Tab. 7, p. 16</h3>";
+    if (nessuna) hr += '<div class="esito">' + chip("kx", "—") + '<span class="muted">scegliere che cosa si sospetta (passo 1)</span></div>';
+    if (mio) {
+      hr += '<div class="ent">Miocardite</div>';
+      if (rm.cat === null) hr += '<div class="esito">' + chip("kx", "—") + '<span class="muted">' + rm.perche + "</span></div>";
+      else {
+        var lr = RIS_LAB[rm.cat];
+        hr += '<div class="esito"><span class="big">' + { alto:"Alto rischio", intermedio:"Rischio intermedio", basso:"Basso rischio", nonalto:"Non alto rischio", gap40:"FEVS 40%: non assegnata" }[rm.cat] + "</span>" + chip(lr[0], lr[1]) + "</div>";
+      }
+      hr += critHtml(rm);
+      if (rm.cat === "alto") hr += nota("stop", "Deciso da: <b>" + nomiA(rm) + "</b>" + pgs(P.tab7) + "." + (rm.onlyA ? " Tutti con <b>nota a</b>: non portano da soli alla biopsia" + pgs(P.notaA) + "." : ""));
+      if (rm.cat === "nonalto") hr += nota("info", "Nessun criterio d'alto rischio: è il ramo «non alto rischio» delle Fig. 9–11 e il «no» della Fig. 5" + pgs(P.fig5 + "; " + P.fig9) + ". " + rm.perche + pgs(P.tab7) + ".");
+      if (rm.cat === "gap40") hr += nota("stop", "<b>FEVS 40% esatta:</b> la Tab. 7 dà l'alto rischio sotto 40% e l'intermedio da 41% a 49%" + pgs(P.tab7) + "; il testo dice alto rischio con scompenso acuto e FEVS ≤40%" + pgs(ESC + "p. 22") + ". Due letture: <b>alto</b> (p. 22" + (s.pres === "scompenso" ? ", che qui si applica: presentazione con scompenso" : ", scritta per la presentazione con scompenso") + ") o <b>intermedio</b> (la fascia più vicina della tabella). Lo strumento non sceglie; il ricovero I C vale in entrambe.");
+      if (rm.note.indexOf("fevsNota") >= 0) hr += nota("", "FEVS &lt;50% con funzione VS <b>già nota</b> alterata: la Tab. 7 parla di FEVS ridotta <b>di nuova insorgenza</b>; lo strumento non usa la FEVS per la categoria" + pgs(P.tab7) + ".");
+      else if (s.fevs !== null && s.fevs < SOGLIE.fevsConserv && s.vs === "") hr += nota("info", "La Tab. 7 parla di FEVS ridotta <b>di nuova insorgenza</b>: lo strumento la tratta così; se era già nota, indicarlo al passo 2" + pgs(P.tab7) + ".");
+      if (rm.note.indexOf("aritmiaDaSegnare") >= 0) hr += nota("stop", "<b>Presentazione aritmica al passo 1, nessuna aritmia segnata qui:</b> la Tab. 7 distingue arresto cardiaco o sincope, FV o TV sostenuta e BAV di alto grado (<b>alto</b> rischio, nota a) dalle aritmie ventricolari non sostenute (<b>intermedio</b>). Segnare quella presente: lo strumento non la sceglie" + pgs(P.tab7) + ".");
+      if (rm.note.indexOf("stabContra") >= 0) hr += nota("", "Segnati insieme «sintomi stabili» e criteri d'intermedio o alto rischio: decide il criterio più alto.");
+      if (s.lge === "est") hr += nota("info", "«LGE esteso» la fonte non lo quantifica: lo giudica chi legge la CMR" + pgs(P.tab7) + ".");
+    }
+    if (peri) {
+      hr += '<div class="ent">Pericardite</div>';
+      if (rp.cat === null) hr += '<div class="esito">' + chip("kx", "—") + '<span class="muted">' + rp.perche + "</span></div>";
+      else {
+        var lq = RIS_LAB[rp.cat];
+        hr += '<div class="esito"><span class="big">' + { alto:"Alto rischio", intermedio:"Rischio intermedio", basso:"Basso rischio", nonalto:"Non alto rischio", rivalutare:"Non risponde: rivalutare" }[rp.cat] + "</span>" + chip(lq[0], rp.cat === "nonalto" ? "non alto — controllo a 1–2 sett." : lq[1]) + "</div>";
+      }
+      hr += critHtml(rp);
+      if (fm && fm.f) hr += nota("info", "Forma mista: la Tab. 16 conta la pericardite associata a miocardite fra i segni <b>minori</b> di eziologia non virale e di complicanze; la Tab. 7 non la usa" + pgs(P.tab16) + ".");
+      if (rp.cat === "alto") hr += nota("stop", "Nella pericardite <b>basta un predittore</b> della Tab. 7 per l'alto rischio" + pgs(P.fig7 + ", nota b") + ".");
+      if (rp.cat === "nonalto") hr += nota("info", "Nessun criterio d'alto o intermedio rischio e risposta non ancora valutata: il basso rischio si conferma con la <b>risposta alla terapia entro 1–2 settimane</b>" + pgs(P.tab7 + "; " + P.fig7) + ".");
+      if (rp.cat === "rivalutare") hr += nota("stop", "Nessuna risposta alla terapia: nella Fig. 7 il ramo «no» porta alla rivalutazione del rischio, <b>intermedio o alto</b>" + pgs(P.fig7) + ". Se la terapia era un FANS, il fallimento è un criterio d'alto rischio della Tab. 7" + pgs(P.tab7) + ".");
+      if (s.peff !== null && s.peff < SOGLIE.peffInter && s.peff > 0) hr += nota("info", "«Lieve» la Tab. 7 non lo quantifica: lo strumento legge sotto 10 mm come assente o lieve, per complemento della fascia 10–20 mm" + pgs(P.tab7) + ".");
+      if (s.peff === SOGLIE.peffAlto) hr += nota("info", "20 mm esatti stanno nella fascia 10–20 mm: rischio intermedio; l'alto comincia sopra 20" + pgs(P.tab7) + ".");
+      if (rp.cat === "basso" && !(s.pCmr || s.qLge)) hr += nota("", "CMR non segnata: il criterio d'imaging «nessun LGE pericardico» della Tab. 7 non è verificato" + pgs(P.tab7) + ".");
+    }
+    el("outRis").innerHTML = hr;
+
+    /* (c) · decisione */
+    var hd = "<h3>Che cosa fare — Rec. Table 1, p. 28</h3>", dMio = null, dPeri = null;
+    if (nessuna) hd += '<div class="esito">' + chip("kx", "—") + '<span class="muted">scegliere che cosa si sospetta (passo 1)</span></div>';
+    if (mio) {
+      dMio = decMio(s, rm);
+      hd += '<div class="ent">Miocardite</div>';
+      hd += '<div class="esito">' + (dMio.dove ? '<span class="big">' + cap(dMio.dove.t) + "</span>" : chip("kx", "—") + '<span class="muted">' + (rm.perche || "completare i passi") + "</span>") + "</div>";
+      hd += passiHtml(dMio.passi);
+    }
+    if (peri) {
+      dPeri = decPeri(s, rp);
+      hd += '<div class="ent">Pericardite</div>';
+      hd += '<div class="esito">' + (dPeri.dove ? '<span class="big">' + cap(dPeri.dove.t) + "</span>" : chip("kx", "—") + '<span class="muted">' + (rp.perche || "completare i passi") + "</span>") + "</div>";
+      hd += passiHtml(dPeri.passi);
+    }
+    el("outDec").innerHTML = hd;
+
+    var alg = algoritmi(s, dm, rm);
+    el("outAlg").innerHTML = "<h3>Quale algoritmo della fonte seguire</h3>" + (alg.length ? '<ul class="lista"><li>' + alg.join("</li><li>") + "</li></ul>" : '<div class="esito">' + chip("kx", "—") + '<span class="muted">servono il sospetto, la porta d\'ingresso e la presentazione (passo 1)</span></div>');
+
+    /* incoerenze: tutte elencate, marcate quando il caso le tocca */
+    function inc(tocca, t) { return nota(tocca ? "" : "spenta", (tocca ? '<span class="tocca">questo caso</span>' : "") + t); }
+    var tMioBasso = mio && rm && rm.cat === "basso";
+    var tFinestra = peri && (s.qRisp === "no" || s.qFans);
+    el("outInc").innerHTML =
+      inc(mio && rm && rm.cat === "gap40", "<b>FEVS 40% esatta.</b> Tab. 7: alto rischio sotto 40%, intermedio 41–49%" + pgs(P.tab7) + "; testo: alto rischio con scompenso acuto e FEVS ≤40%" + pgs(ESC + "p. 22") + ". Lo strumento mostra le due letture e non sceglie.") +
+      inc(tFinestra, "<b>La finestra della non risposta.</b> Tab. 7 e Fig. 7: risposta entro <b>1–2 settimane</b>" + pgs(P.tab7 + "; " + P.fig7) + ", e controllo entro 1–2 settimane" + pgs(P.p47) + "; Tab. 16: mancata risposta ad aspirina o FANS dopo <b>almeno 1 settimana</b> è già un segno maggiore" + pgs(P.tab16) + ". Lo strumento prende la risposta come la giudica il medico e non conta i giorni.") +
+      inc(tMioBasso, "<b>Il ricovero nella miocardite a basso rischio.</b> Rec. Table 1: da considerare, <b>IIa C</b>" + pgs(P.rec1) + "; Fig. 5 (PS): restare in reparto e dimettere appena possibile, riquadro marcato <b>Classe I</b>" + pgs(P.fig5) + "; Fig. 6 (ambulatorio): <b>terapia ambulatoriale</b>" + pgs(P.fig6) + ". Lo strumento dà la classe della raccomandazione e mostra il ramo della figura.") +
+      inc(mio && rm && rm.cat === "alto" && rm.onlyA, "<b>La biopsia nell'alto rischio.</b> Rec. Table 1: EMB <b>I C</b> nella miocardite ad alto rischio" + pgs(P.rec1) + "; Tab. 7, nota a: arresto o sincope, FV/TV sostenuta, BAV di alto grado, FEVS &lt;40% e LGE esteso non portano da soli alla biopsia" + pgs(P.notaA) + ". Lo strumento segue la nota a quando l'alto rischio viene solo da quei criteri, e mostra la raccomandazione.") +
+      inc(mio && dm && dm.cat === "gap", "<b>CMR (o EMB) negativa con criteri aggiuntivi.</b> La Tab. 4 dà la possibile con CMR o EMB «incerte o non disponibili» e l'improbabile/respinta con la sola presentazione: il caso intermedio non ha riga" + pgs(P.tab4) + ". Lo strumento mostra le due letture.") +
+      inc(peri && rp && rp.cat !== null, "<b>Due elenchi d'alto rischio della pericardite.</b> La Tab. 7 non ha l'esordio subacuto né i segni minori della Tab. 16 (miocardite associata, immunodepressione, trauma, terapia anticoagulante orale); la Tab. 16 non ha la forma incessante né l'essudativo-costrittiva" + pgs(P.tab7 + "; " + P.tab16) + ". Lo strumento stratifica con la Tab. 7, che è quella richiamata dalla Rec. Table 1.");
+
+    var lim = [];
+    lim.push("I criteri aggiuntivi della Tab. 4 si contano <b>riga per riga</b> della tabella (l'ECG della pericardite è un criterio anche se nomina due segni); la fonte non dice come si contano.");
+    lim.push("Un criterio LLC positivo conta anche come criterio aggiuntivo d'imaging della miocardite" + pgs(ESC + "p. 13") + ".");
+    lim.push("La categoria dell'EMB (provata, incerta, respinta) è del patologo: la soglia dei linfociti CD3⁺ è «&gt;7/mm²» nella Tab. 5 e «≥7» nel testo" + pgs(ESC + "Tab. 5, p. 13; p. 15") + ".");
+    lim.push("«LGE esteso», «LGE pericardico esteso» e il versamento «lieve» la fonte non li quantifica: li giudica chi legge l'esame.");
+    lim.push("La FEVS della Tab. 7 è quella <b>ridotta di nuova insorgenza</b>; una disfunzione nota da prima è fuori dalla tabella.");
+    lim.push("La stratificazione non sostituisce il giudizio clinico: l'instabilità si tratta subito, prima dei criteri (Fig. 10–11).");
+    lim.push("Nessuna dose: gli schemi antinfiammatori e la terapia dello scompenso stanno nel prontuario e nella scheda.");
+    lim.push("I limiti di plausibilità dei campi (FEVS 5–85% intera, versamento 0–60 mm) sono dello strumento, non della fonte.");
+    el("limiti").innerHTML = "<li>" + lim.join("</li><li>") + "</li>";
+
+    /* barra */
+    function bar(id, k, t) { var b = el(id); b.className = "cat " + k; b.innerHTML = t; }
+    var bd = [], bk = "kx";
+    if (mio && dm && dm.cat) { bd.push("miocardite " + DIA_LAB[dm.cat][1]); bk = DIA_LAB[dm.cat][0]; }
+    if (peri && dp && dp.cat) { bd.push(fm && fm.f ? fm.f : "pericardite " + DIA_LAB[dp.cat][1]); if (bk === "kx") bk = DIA_LAB[dp.cat][0]; }
+    bar("barDia", bd.length ? bk : "kx", bd.length ? bd.join(" · ") : "—");
+    var br = [], brk = "kx", ord = { alto:4, gap40:3, rivalutare:3, intermedio:2, nonalto:1, basso:0 }, top = -1;
+    if (mio && rm && rm.cat) { br.push((peri ? "M " : "") + RIS_LAB[rm.cat][1].split(" — ")[0]); if (ord[rm.cat] > top) { top = ord[rm.cat]; brk = RIS_LAB[rm.cat][0]; } }
+    if (peri && rp && rp.cat) { br.push((mio ? "P " : "") + RIS_LAB[rp.cat][1].split(" — ")[0]); if (ord[rp.cat] > top) { top = ord[rp.cat]; brk = RIS_LAB[rp.cat][0]; } }
+    bar("barRis", br.length ? brk : "kx", br.length ? br.join(" · ") : "—");
+    var bv = [], bvk = "kx";
+    if (dMio && dMio.dove) { bv.push((peri ? "M " : "") + dMio.dove.t); bvk = dMio.dove.k; }
+    if (dPeri && dPeri.dove) { bv.push((mio ? "P " : "") + dPeri.dove.t); if (bvk === "kx" || dPeri.dove.k === "k4") bvk = dPeri.dove.k; }
+    bar("barDove", bv.length ? bvk : "kx", bv.length ? bv.join(" · ") : "—");
+  }
+
+  document.addEventListener("input", disegna);
+  document.addEventListener("change", disegna);
+  el("azzera").addEventListener("click", function () {
+    var ins = document.querySelectorAll("input");
+    for (var i = 0; i < ins.length; i++) {
+      if (ins[i].type === "checkbox" || ins[i].type === "radio") ins[i].checked = false;
+      else ins[i].value = "";
+    }
+    disegna();
+    window.scrollTo(0, 0);
+  });
+
+  window.IMPS_MOTORE = {
+    diagMio:function (s) { return diagMio(pulisci(s)); }, diagPeri:diagPeri, formaMista:formaMista,
+    rischioMio:function (s) { return rischioMio(pulisci(s)); }, rischioPeri:function (s) { return rischioPeri(pulisci(s)); }
+  };
+  disegna();
+})();
+</script>
+<script data-iphone="web">
+// Solo da un indirizzo https, cioe' dalla pagina pubblicata: aperto come file
+// il tool non cerca ne' manifest ne' service worker, che accanto al file non
+// ci sono. Un errore qui non deve fermare niente: e' un di piu'.
+(function(){
+if(location.protocol!=="https:") return;
+try{
+  var t=document.getElementsByTagName("head")[0];
+  var m=document.createElement("link"); m.rel="manifest"; m.href="manifest.webmanifest";
+  var i=document.createElement("link"); i.rel="apple-touch-icon"; i.href="icona-180.png";
+  t.appendChild(m); t.appendChild(i);
+  if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js")["catch"](function(){});
+}catch(e){}
+})();
+</script>
+<script data-iphone="fine">document.documentElement.className+=" motore-ok";</script>
+</body>
+</html>
